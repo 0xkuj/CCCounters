@@ -1,0 +1,9 @@
+Package: com.0xkuj.cccounters
+Name: CCCounters
+Depends: mobilesubstrate
+Version: 0.0.1
+Architecture: iphoneos-arm
+Description: An awesome MobileSubstrate tweak!
+Maintainer: 0xkuj
+Author: 0xkuj
+Section: Tweaks
