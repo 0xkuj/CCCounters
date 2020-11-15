@@ -137,7 +137,7 @@ static void loadPrefs() {
 }
 
 %hook MTTimerManager   
-//this was the same but for currentTimer
+/* Get timer instances when system loads up */
 -(MTTimerManagerExportedObject *)exportedObject {
 	if (!isEnabled) {
 		return %orig;
@@ -157,7 +157,7 @@ static void loadPrefs() {
 }
 %end
 
-//bug: when touched and not when pressed.
+/* By design - will change if requested - module engagement - touch is sufficient */
 %hook CCUIModuleCollectionViewController
 static BOOL timerWasExpended = FALSE;
 -(void)contentModuleContainerViewController:(id)arg1 didBeginInteractionWithModule:(id)arg2 {
