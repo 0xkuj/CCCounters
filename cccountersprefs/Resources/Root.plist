@@ -24,7 +24,7 @@
 			<key>label</key>
 			<string>Tweak Enabled</string>
 			<key>nestedEntryCount</key>
-			<integer>12</integer>
+			<integer>11</integer>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -88,7 +88,7 @@
 			<key>defaults</key>
 			<string>com.0xkuj.cccountersprefs</string>
 			<key>key</key>
-			<string>styleAlarmColorRand</string>
+			<string>isStyleAlarmColorRand</string>
 			<key>PostNotification</key>
 			<string>com.0xkuj.cccountersprefs.settingschanged</string>
 			<key>label</key>
@@ -124,7 +124,7 @@
 			<key>defaults</key>
 			<string>com.0xkuj.cccountersprefs</string>
 			<key>key</key>
-			<string>styleTimerColorRand</string>
+			<string>isStyleTimerColorRand</string>
 			<key>PostNotification</key>
 			<string>com.0xkuj.cccountersprefs.settingschanged</string>
 			<key>label</key>
@@ -160,7 +160,7 @@
 			<key>defaults</key>
 			<string>com.0xkuj.cccountersprefs</string>
 			<key>key</key>
-			<string>styleLastPressedColorRand</string>
+			<string>isStyleLastPressedColorRand</string>
 			<key>PostNotification</key>
 			<string>com.0xkuj.cccountersprefs.settingschanged</string>
 			<key>label</key>
@@ -253,6 +253,6 @@
 		</dict>
 	</array>
 	<key>title</key>
-	<string>CCCountersPrefs</string>
+	<string>CCCounters Preferences</string>
 </dict>
 </plist>

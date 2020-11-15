@@ -1,4 +1,4 @@
-#include <RemoteLog.h>
+#import <libcolorpicker.h>
 #define MODULE_LABELS_PATH @"/var/mobile/Library/Preferences/com.0xkuj.cccounters_modules.plist"
 #define GENERAL_PREFS @"/var/mobile/Library/Preferences/com.0xkuj.cccountersprefs.plist"
 
@@ -30,6 +30,8 @@
 -(void)addTimerLabel;
 // %new
 -(void)addAlarmLabel;
+// %new
+-(UIColor*)randColor;
 @end
 
 @interface MTTimer 
@@ -86,14 +88,14 @@ NSTimer* pendingTimer;
 NSTimer* pendingTimerAlarm;
 MTTimer* globalPointerToNAF;
 static BOOL dismissingCC = FALSE,timerExpanded = FALSE;
-BOOL isEnabled = TRUE,isAlarmETA = TRUE,isTimerETA = TRUE,isLastPressed = FALSE,styleAlarmColorRand = FALSE,styleTimerColorRand = FALSE,styleLastPressedColorRand = FALSE;
+BOOL isEnabled = TRUE,isAlarmETA = TRUE,isTimerETA = TRUE,isLastPressed = FALSE,isStyleAlarmColorRand = FALSE,isStyleTimerColorRand = FALSE,isStyleLastPressedColorRand = FALSE;
+NSString *styleAlarmColor = nil, *styleTimerColor = nil, *styleLastPressedColor = nil;
 static int singleInit = 0;
 NSMutableDictionary* moduleAndLabels;
 NSDictionary *moduleDictionary;
 UILabel *alarmLabel;
 MTTimerManager* globlmtmanager;
 
-//whats left? colors.
 /* Load preferences after change */
 static void loadPrefs() {
 	NSMutableDictionary* mainPreferenceDict = [[NSMutableDictionary alloc] initWithContentsOfFile:GENERAL_PREFS];
@@ -110,14 +112,23 @@ static void loadPrefs() {
 	if ([mainPreferenceDict objectForKey:@"isLastPressed"] != nil) {
 		isLastPressed = [[mainPreferenceDict objectForKey:@"isLastPressed"] boolValue];
 	}
-	if ([mainPreferenceDict objectForKey:@"styleAlarmColorRand"] != nil) {
-		styleAlarmColorRand = [[mainPreferenceDict objectForKey:@"styleAlarmColorRand"] boolValue];
+	if ([mainPreferenceDict objectForKey:@"isStyleAlarmColorRand"] != nil) {
+		isStyleAlarmColorRand = [[mainPreferenceDict objectForKey:@"isStyleAlarmColorRand"] boolValue];
 	}
-	if ([mainPreferenceDict objectForKey:@"styleTimerColorRand"] != nil) {
-		styleTimerColorRand = [[mainPreferenceDict objectForKey:@"styleTimerColorRand"] boolValue];
+	if ([mainPreferenceDict objectForKey:@"isStyleTimerColorRand"] != nil) {
+		isStyleTimerColorRand = [[mainPreferenceDict objectForKey:@"isStyleTimerColorRand"] boolValue];
 	}
-	if ([mainPreferenceDict objectForKey:@"styleLastPressedColorRand"] != nil) {
-		styleLastPressedColorRand = [[mainPreferenceDict objectForKey:@"styleLastPressedColorRand"] boolValue];
+	if ([mainPreferenceDict objectForKey:@"isStyleLastPressedColorRand"] != nil) {
+		isStyleLastPressedColorRand = [[mainPreferenceDict objectForKey:@"isStyleLastPressedColorRand"] boolValue];
+	}
+	  if ([mainPreferenceDict objectForKey:@"styleAlarmColor"] != nil) {
+		styleAlarmColor = [mainPreferenceDict objectForKey:@"styleAlarmColor"];
+	}
+	  if ([mainPreferenceDict objectForKey:@"styleTimerColor"] != nil) {
+		styleTimerColor = [mainPreferenceDict objectForKey:@"styleTimerColor"];
+	}
+	  if ([mainPreferenceDict objectForKey:@"styleLastPressedColor"] != nil) {
+		styleLastPressedColor = [mainPreferenceDict objectForKey:@"styleLastPressedColor"];
 	}
 
 }
@@ -130,7 +141,6 @@ static void loadPrefs() {
 	}
 	MTTimerManagerExportedObject* expManager = %orig;
 	globlmtmanager = expManager.timerManager;
-	RLog(@"expmanager: %@ actual manager: %@", expManager, expManager.timerManager);
 	if (singleInit == 0) {
 		NSFileManager *fileManager = [NSFileManager defaultManager];
 		if ([fileManager fileExistsAtPath:MODULE_LABELS_PATH]){ 
@@ -154,8 +164,11 @@ static BOOL timerWasExpended = FALSE;
 	}
 
 	 %orig(arg1,arg2); 
-	 RLog(@"module identifier got pressed: %@",((CCUIContentModuleContainerViewController*)arg1).moduleIdentifier); 
 	 NSString* mdForCompare = ((CCUIContentModuleContainerViewController*)arg1).moduleIdentifier;
+	 //do nothing for those modules for now.
+	 if ([mdForCompare isEqualToString:@"com.apple.mediaremote.controlcenter.nowplaying"] || [mdForCompare isEqualToString:@"com.apple.control-center.ConnectivityModule"]) {
+		 return;
+	 }
 	 [self addLastTimePressedLabel:arg1];
 	 if ([mdForCompare isEqualToString:@"com.apple.mobiletimer.controlcenter.timer"]) {
 		 timerWasExpended = TRUE;
@@ -198,7 +211,11 @@ static BOOL timerWasExpended = FALSE;
 			UILabel* moduleDateLabel = [[UILabel alloc] initWithFrame:CGRectMake(0, 4.5, moduleView.frame.size.width,12)];
 			[moduleDateLabel setText:[moduleAndLabels objectForKey:key]];
 			[moduleDateLabel setFont:[UIFont systemFontOfSize:7]];
-			[moduleDateLabel setTextColor:[UIColor whiteColor]];
+			if (isStyleLastPressedColorRand) {
+				[moduleDateLabel setTextColor:[self randColor]];
+			} else {
+				[moduleDateLabel setTextColor:LCPParseColorString(styleLastPressedColor, @"#FFFFFF")];
+			}
 			[moduleDateLabel setTextAlignment:NSTextAlignmentCenter];
 			[moduleView addSubview:moduleDateLabel];
 		}
@@ -210,7 +227,13 @@ static BOOL timerWasExpended = FALSE;
 		[self addAlarmLabel];
 	}
 }
-
+%new 
+-(UIColor*)randColor {
+	CGFloat r   = arc4random_uniform(255)/255.0;  
+	CGFloat g 	= arc4random_uniform(255)/255.0;  
+	CGFloat b   = arc4random_uniform(255)/255.0;  
+	return [UIColor colorWithRed:r green:g blue:b alpha:1.0];
+}
 /* adding special alarm label that shows the ETA for the closest alarm */
 %new
 -(void)addAlarmLabel {
@@ -230,7 +253,11 @@ static BOOL timerWasExpended = FALSE;
 			alarmRemainingLabel = [[UILabel alloc] initWithFrame:CGRectMake(0, alarmModuleContainerView.frame.size.height-18, [alarmModuleContainerView frame].size.width, 12)];
 			[alarmRemainingLabel setText:[self timeFromSec:timeDelta]];
 			[alarmRemainingLabel setFont:[UIFont systemFontOfSize:10]];
-			[alarmRemainingLabel setTextColor:[UIColor whiteColor]];
+			if (isStyleAlarmColorRand) {
+				[alarmRemainingLabel setTextColor:[self randColor]];
+			} else {
+				[alarmRemainingLabel setTextColor:LCPParseColorString(styleAlarmColor, @"#FFFFFF")];
+			}
 			[alarmRemainingLabel setTextAlignment:NSTextAlignmentCenter];
 			[alarmModuleContainerView addSubview:alarmRemainingLabel];
 			pendingTimerAlarm = [NSTimer scheduledTimerWithTimeInterval:0.1f target:self selector:@selector(updateLabelAlarm:) userInfo:nil repeats:YES];
@@ -256,7 +283,12 @@ static BOOL timerWasExpended = FALSE;
 			timeRemainingLabel = [[UILabel alloc] initWithFrame:CGRectMake(0, 0, [timerModuleContainerView frame].size.width, [timerModuleContainerView frame].size.height)];
 			[timeRemainingLabel setText:[self timeFromSec:timeDelta]];
 			[timeRemainingLabel setFont:[UIFont systemFontOfSize:12]];
-			[timeRemainingLabel setTextColor:[UIColor whiteColor]];
+			if (isStyleTimerColorRand) {
+				[timeRemainingLabel setTextColor:[self randColor]];
+			} else {
+				[timeRemainingLabel setTextColor:LCPParseColorString(styleTimerColor, @"#FFFFFF")];
+			}
+			
 			[timeRemainingLabel setTextAlignment:NSTextAlignmentCenter];
 			[timerModuleContainerView addSubview:timeRemainingLabel];
 			pendingTimer = [NSTimer scheduledTimerWithTimeInterval:0.1f target:self selector:@selector(updateLabelTimer:) userInfo:nil repeats:YES];
@@ -290,7 +322,12 @@ static BOOL timerWasExpended = FALSE;
 	lastPressedLabel = [[UILabel alloc] initWithFrame:CGRectMake(0, 4.5, selectedModuleView.frame.size.width,12)];
 	[lastPressedLabel setText:currentDate];
 	[lastPressedLabel setFont:[UIFont systemFontOfSize:7]];
-	[lastPressedLabel setTextColor:[UIColor whiteColor]];
+	if (isStyleLastPressedColorRand) {
+		[lastPressedLabel setTextColor:[self randColor]];
+	} else {
+		[lastPressedLabel setTextColor:LCPParseColorString(styleLastPressedColor, @"#FFFFFF")];
+	}
+	
 	[lastPressedLabel setTextAlignment:NSTextAlignmentCenter];
 	[selectedModuleView addSubview:lastPressedLabel];
 
@@ -348,10 +385,12 @@ static BOOL timerWasExpended = FALSE;
 	 }
 
 	 if (arg1) {
+		alarmRemainingLabel.hidden = 1;
 	 	timeRemainingLabel.hidden = 1;
 		[self hideLabel:TRUE];
 	 }
 	 else {
+		alarmRemainingLabel.hidden = 0;
 		timeRemainingLabel.hidden = 0;
 		[self hideLabel:FALSE];
 		timerExpanded = FALSE;

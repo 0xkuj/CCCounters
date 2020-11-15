@@ -1,8 +1,9 @@
-ARCHS = arm64
+ARCHS = arm64 arm64e
 include $(THEOS)/makefiles/common.mk
 
 TWEAK_NAME = CCCounters
 CCCounters_FILES = Tweak.xm
+CCCounters_LIBRARIES = colorpicker
 
 include $(THEOS_MAKE_PATH)/tweak.mk
 

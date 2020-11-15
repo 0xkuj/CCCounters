@@ -1,6 +1,5 @@
 #include "CCCRootListController.h"
 #import <spawn.h>
-#include <RemoteLog.h>
 
 #define GENERAL_PREFS @"/var/mobile/Library/Preferences/com.0xkuj.cccountersprefs.plist"
 #define MODULE_LABELS_PATH @"/var/mobile/Library/Preferences/com.0xkuj.cccounters_modules.plist"
@@ -152,7 +151,7 @@
 }
 
 /* iOS 13 deprecated these functions */
-
+#if 0
 -(void)openTwitter {
 	[[UIApplication sharedApplication] openURL:[NSURL URLWithString:@"https://www.twitter.com/omrkujman"]];
 }
@@ -160,8 +159,8 @@
 -(void)donationLink {
 	[[UIApplication sharedApplication] openURL:[NSURL URLWithString:@"https://www.paypal.me/0xkuj"]];
 }
+#endif
 
-#if 0
 -(void)openTwitter {
 	UIApplication *application = [UIApplication sharedApplication];
 	NSURL *URL = [NSURL URLWithString:@"https://www.twitter.com/omrkujman"];
@@ -173,5 +172,5 @@
 	NSURL *URL = [NSURL URLWithString:@"https://www.paypal.me/0xkuj"];
 	[application openURL:URL options:@{} completionHandler:^(BOOL success) {return;}];
 }
-#endif
+
 @end
