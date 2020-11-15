@@ -5,6 +5,7 @@ CCCountersPrefs_FILES = CCCRootListController.m
 CCCountersPrefs_INSTALL_PATH = /Library/PreferenceBundles
 CCCountersPrefs_FRAMEWORKS = UIKit
 CCCountersPrefs_PRIVATE_FRAMEWORKS = Preferences
+CCCountersPrefs_LIBRARIES = colorpicker
 
 include $(THEOS_MAKE_PATH)/bundle.mk
 

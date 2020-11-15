@@ -1,5 +1,6 @@
 #include <RemoteLog.h>
 #define MODULE_LABELS_PATH @"/var/mobile/Library/Preferences/com.0xkuj.cccounters_modules.plist"
+#define GENERAL_PREFS @"/var/mobile/Library/Preferences/com.0xkuj.cccountersprefs.plist"
 
 @interface SBScheduledAlarmObserver
 +(id)sharedInstance;
@@ -84,22 +85,49 @@ CCUIContentModuleContainerView *timerModuleContainerView;
 NSTimer* pendingTimer;
 NSTimer* pendingTimerAlarm;
 MTTimer* globalPointerToNAF;
-static BOOL dismissingCC = FALSE;
-static BOOL timerExpanded = FALSE;
+static BOOL dismissingCC = FALSE,timerExpanded = FALSE;
+BOOL isEnabled = TRUE,isAlarmETA = TRUE,isTimerETA = TRUE,isLastPressed = FALSE,styleAlarmColorRand = FALSE,styleTimerColorRand = FALSE,styleLastPressedColorRand = FALSE;
 static int singleInit = 0;
 NSMutableDictionary* moduleAndLabels;
 NSDictionary *moduleDictionary;
 UILabel *alarmLabel;
 MTTimerManager* globlmtmanager;
 
+//whats left? colors.
 /* Load preferences after change */
 static void loadPrefs() {
+	NSMutableDictionary* mainPreferenceDict = [[NSMutableDictionary alloc] initWithContentsOfFile:GENERAL_PREFS];
+	if ([mainPreferenceDict objectForKey:@"isEnabled"] != nil) {
+		isEnabled = [[mainPreferenceDict objectForKey:@"isEnabled"] boolValue];
+	}
+
+	if ([mainPreferenceDict objectForKey:@"isAlarmETA"] != nil) {
+		isAlarmETA = [[mainPreferenceDict objectForKey:@"isAlarmETA"] boolValue];
+	}
+	if ([mainPreferenceDict objectForKey:@"isTimerETA"] != nil) {
+		isTimerETA = [[mainPreferenceDict objectForKey:@"isTimerETA"] boolValue];
+	}
+	if ([mainPreferenceDict objectForKey:@"isLastPressed"] != nil) {
+		isLastPressed = [[mainPreferenceDict objectForKey:@"isLastPressed"] boolValue];
+	}
+	if ([mainPreferenceDict objectForKey:@"styleAlarmColorRand"] != nil) {
+		styleAlarmColorRand = [[mainPreferenceDict objectForKey:@"styleAlarmColorRand"] boolValue];
+	}
+	if ([mainPreferenceDict objectForKey:@"styleTimerColorRand"] != nil) {
+		styleTimerColorRand = [[mainPreferenceDict objectForKey:@"styleTimerColorRand"] boolValue];
+	}
+	if ([mainPreferenceDict objectForKey:@"styleLastPressedColorRand"] != nil) {
+		styleLastPressedColorRand = [[mainPreferenceDict objectForKey:@"styleLastPressedColorRand"] boolValue];
+	}
 
 }
 
 %hook MTTimerManager   
 //this was the same but for currentTimer
 -(MTTimerManagerExportedObject *)exportedObject {
+	if (!isEnabled) {
+		return %orig;
+	}
 	MTTimerManagerExportedObject* expManager = %orig;
 	globlmtmanager = expManager.timerManager;
 	RLog(@"expmanager: %@ actual manager: %@", expManager, expManager.timerManager);
@@ -120,6 +148,11 @@ static void loadPrefs() {
 %hook CCUIModuleCollectionViewController
 static BOOL timerWasExpended = FALSE;
 -(void)contentModuleContainerViewController:(id)arg1 didBeginInteractionWithModule:(id)arg2 {
+	if (!isEnabled) {
+		%orig;
+		return;
+	}
+
 	 %orig(arg1,arg2); 
 	 RLog(@"module identifier got pressed: %@",((CCUIContentModuleContainerViewController*)arg1).moduleIdentifier); 
 	 NSString* mdForCompare = ((CCUIContentModuleContainerViewController*)arg1).moduleIdentifier;
@@ -132,13 +165,23 @@ static BOOL timerWasExpended = FALSE;
 }
 
 -(void)contentModuleContainerViewControllerDismissPresentedContent:(id)arg1 {
+	if (!isEnabled) {
+		%orig;
+		return;
+	}
+
 	%orig(arg1);
-	if (timerWasExpended) {
+	if (timerWasExpended && isTimerETA) {
 		[self addTimerLabel];
 	}
 }
 
 -(void)viewWillAppear:(BOOL)arg1 {
+	if (!isEnabled) {
+		%orig;
+		return;
+	}
+
 	%orig(arg1);
 	moduleDictionary = MSHookIvar<NSDictionary *>(self, "_moduleContainerViewByIdentifier");
 	[self addInitialLabels];
@@ -148,17 +191,24 @@ static BOOL timerWasExpended = FALSE;
 /* Adding labels from the user saved plist file */
 %new 
 -(void)addInitialLabels {
-	for(id key in moduleAndLabels) {
-		CCUIContentModuleContainerView *moduleView = [moduleDictionary objectForKey:key];
-		UILabel* moduleDateLabel = [[UILabel alloc] initWithFrame:CGRectMake(0, 4.5, moduleView.frame.size.width,12)];
-		[moduleDateLabel setText:[moduleAndLabels objectForKey:key]];
-		[moduleDateLabel setFont:[UIFont systemFontOfSize:7]];
-		[moduleDateLabel setTextColor:[UIColor whiteColor]];
-		[moduleDateLabel setTextAlignment:NSTextAlignmentCenter];
-		[moduleView addSubview:moduleDateLabel];
+
+	if (isLastPressed) {
+		for(id key in moduleAndLabels) {
+			CCUIContentModuleContainerView *moduleView = [moduleDictionary objectForKey:key];
+			UILabel* moduleDateLabel = [[UILabel alloc] initWithFrame:CGRectMake(0, 4.5, moduleView.frame.size.width,12)];
+			[moduleDateLabel setText:[moduleAndLabels objectForKey:key]];
+			[moduleDateLabel setFont:[UIFont systemFontOfSize:7]];
+			[moduleDateLabel setTextColor:[UIColor whiteColor]];
+			[moduleDateLabel setTextAlignment:NSTextAlignmentCenter];
+			[moduleView addSubview:moduleDateLabel];
+		}
 	}
-	[self addTimerLabel];
-	[self addAlarmLabel];
+	if (isTimerETA) {
+		[self addTimerLabel];
+	}
+	if (isAlarmETA) {
+		[self addAlarmLabel];
+	}
 }
 
 /* adding special alarm label that shows the ETA for the closest alarm */
@@ -217,6 +267,9 @@ static BOOL timerWasExpended = FALSE;
 /* when module is engaged (being touched) will add updated label above it to show the last time it was pressed - if anyone wants that -.- */
 %new
 -(void)addLastTimePressedLabel:(id)moduleID {
+	if (!isLastPressed) {
+		return;
+	}
 	CCUIContentModuleContainerView *selectedModuleView = [moduleDictionary objectForKey:((CCUIContentModuleContainerViewController*)moduleID).moduleIdentifier];
 	for (UIView *subView  in ((UIView*)selectedModuleView).subviews) {
 		if ([subView isKindOfClass:[UILabel class]]) {
@@ -258,7 +311,7 @@ static BOOL timerWasExpended = FALSE;
 
 %new
 - (void)updateLabelTimer:(NSTimer *)timer {
-	
+
 	if ([pendingDateTimer timeIntervalSinceDate:[NSDate date]] <= 0) {
 		[timeRemainingLabel removeFromSuperview];
 		timeRemainingLabel = nil;
@@ -285,7 +338,10 @@ static BOOL timerWasExpended = FALSE;
 
 %hook CCUIContentModuleContainerViewController
 -(void)setExpanded:(BOOL)arg1  {
-	 %log; 
+	if (!isEnabled) {
+		%orig;
+		return;
+	}
 
 	 if ([[self moduleIdentifier] isEqualToString:@"com.apple.mobiletimer.controlcenter.timer"]) {
 		 timerExpanded = TRUE;
@@ -318,10 +374,20 @@ static BOOL timerWasExpended = FALSE;
 
 %hook SBControlCenterController
 - (void)_willPresent {
+	if (!isEnabled) {
+		%orig;
+		return;
+	}
+
 	%orig;
 	dismissingCC = FALSE;
 }
 - (void)_willDismiss {
+	if (!isEnabled) {
+		%orig;
+		return;
+	}
+
 	%orig;
 	dismissingCC = TRUE;
 	if (timeRemainingLabel) {

@@ -1,9 +1,9 @@
 Package: com.0xkuj.cccounters
 Name: CCCounters
-Depends: mobilesubstrate
-Version: 0.0.1
+Depends: mobilesubstrate, org.thebigboss.libcolorpicker, firmware (>= 13.0)
+Version: 1.0
 Architecture: iphoneos-arm
-Description: An awesome MobileSubstrate tweak!
+Description: Adds some counters to your Control Center
 Maintainer: 0xkuj
 Author: 0xkuj
 Section: Tweaks
