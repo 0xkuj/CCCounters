@@ -1,3 +1,6 @@
+/* This tweak will add countdown indicators to your CC with special handling to Alarm/Timer.
+Created by: 0xkuj */
+
 #import <libcolorpicker.h>
 #define MODULE_LABELS_PATH @"/var/mobile/Library/Preferences/com.0xkuj.cccounters_modules.plist"
 #define GENERAL_PREFS @"/var/mobile/Library/Preferences/com.0xkuj.cccountersprefs.plist"
