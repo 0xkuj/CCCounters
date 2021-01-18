@@ -64,7 +64,6 @@ static void loadPrefs() {
 }
 %end
 
-//bug: when touched and not when pressed.
 %hook CCUIModuleCollectionViewController
 static BOOL timerWasExpended = FALSE;
 -(void)contentModuleContainerViewController:(id)arg1 didBeginInteractionWithModule:(id)arg2 {
