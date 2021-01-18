@@ -9,7 +9,7 @@
 /* load all specifiers from plist file */
 - (NSMutableArray*)specifiers {
 	if (!_specifiers) {
-		_specifiers = [[self loadSpecifiersFromPlistName:@"Root" target:self] retain];
+		_specifiers = [self loadSpecifiersFromPlistName:@"Root" target:self];
 		[self applyModificationsToSpecifiers:(NSMutableArray*)_specifiers];
 	}
 
@@ -149,17 +149,6 @@
 	/* present the dialog and wait for an answer */
 	[self presentViewController:alertController animated:YES completion:nil];
 }
-
-/* iOS 13 deprecated these functions */
-#if 0
--(void)openTwitter {
-	[[UIApplication sharedApplication] openURL:[NSURL URLWithString:@"https://www.twitter.com/omrkujman"]];
-}
-
--(void)donationLink {
-	[[UIApplication sharedApplication] openURL:[NSURL URLWithString:@"https://www.paypal.me/0xkuj"]];
-}
-#endif
 
 -(void)openTwitter {
 	UIApplication *application = [UIApplication sharedApplication];

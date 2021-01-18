@@ -1,149 +1,56 @@
 /* This tweak will add countdown indicators to your CC with special handling to Alarm/Timer.
+ * Bonus: this tweak survives resprings!
 Created by: 0xkuj */
 
 #import <libcolorpicker.h>
 #define MODULE_LABELS_PATH @"/var/mobile/Library/Preferences/com.0xkuj.cccounters_modules.plist"
 #define GENERAL_PREFS @"/var/mobile/Library/Preferences/com.0xkuj.cccountersprefs.plist"
+#include "CCCounters.h"
 
-@interface SBScheduledAlarmObserver
-+(id)sharedInstance;
-@end
-
-@interface MTAlarm : NSObject
--(BOOL)isActiveAndEnabledForThisDevice;
--(NSDate *)nextFireDate;
-@end
-
-@interface CCUIContentModuleContainerView
-- (void)setAlpha:(CGFloat)alpha;
-- (CGRect)frame;
-- (void)addSubview:(id)arg1;
-- (id)containerView;
-- (void)viewWillAppear:(BOOL)arg1;
-@end
-
-@interface CCUIModuleCollectionViewController
-// %new
-- (NSString *)timeFromSec:(int)seconds;
-// %new
--(void)addLastTimePressedLabel:(id)moduleID;
-// %new
--(void)addInitialLabels;
-// %new 
--(void)addTimerLabel;
-// %new
--(void)addAlarmLabel;
-// %new
--(UIColor*)randColor;
-@end
-
-@interface MTTimer 
-@property (nonatomic,readonly) double remainingTime; 
-@property (nonatomic,readonly) NSDate * fireDate; 
-@property (nonatomic,readonly) NSDate * firedDate; 
-@property (nonatomic,readonly) unsigned long long state; 
--(BOOL)isCurrentTimer;
-@end
-
-@protocol MTTimerManagerIntentSupport 
-@end
-
-@interface MTTimerManager : NSObject
-@property (copy,readonly) NSString * description; 
-@property (nonatomic,readonly) id<MTTimerManagerIntentSupport> timerManager; 
-@property (nonatomic,retain) NSNotificationCenter * notificationCenter;  
--(id)initWithMetrics:(id)arg1 ;
--(id)init;
--(id)nextTimer;
--(id)pauseCurrentTimer;
--(id)currentTimer;
--(id)getCurrentTimerSync;
--(id)timersSync;
--(id)timers;
--(id)updateTimer:(id)arg1 ;
-@end
-
-@interface MTTimerManagerExportedObject
-@property (nonatomic,readonly) MTTimerManager * timerManager;   
-@property (copy,readonly) NSString * description;
-@end
-
-@interface NAFuture {
-	id _resultValue;
-}
-@end
-
-@interface CCUIModuleCollectionView
-@end
-
-@interface CCUIContentModuleContainerViewController
-@property (nonatomic,copy) NSString * moduleIdentifier;
--(BOOL)isExpanded;
--(void)hideLabel:(BOOL)hide;
-@end
-
-UILabel *timeRemainingLabel;
-UILabel *alarmRemainingLabel;
-NSDate *pendingDateTimer;
-NSDate* pendingDateAlarm;
-CCUIContentModuleContainerView *timerModuleContainerView;
-NSTimer* pendingTimer;
-NSTimer* pendingTimerAlarm;
-MTTimer* globalPointerToNAF;
 static BOOL dismissingCC = FALSE,timerExpanded = FALSE;
-BOOL isEnabled = TRUE,isAlarmETA = TRUE,isTimerETA = TRUE,isLastPressed = FALSE,isStyleAlarmColorRand = FALSE,isStyleTimerColorRand = FALSE,isStyleLastPressedColorRand = FALSE;
+BOOL isEnabled,isAlarmETA,isTimerETA,isLastPressed,isStyleAlarmColorRand,isStyleTimerColorRand,isStyleLastPressedColorRand;
 NSString *styleAlarmColor = nil, *styleTimerColor = nil, *styleLastPressedColor = nil;
+UILabel *timeRemainingLabel,*alarmRemainingLabel;
+NSDate *pendingDateTimer,*pendingDateAlarm;
+CCUIContentModuleContainerView *timerModuleContainerView;
+NSTimer *pendingTimer,*pendingTimerAlarm;
 static int singleInit = 0;
 NSMutableDictionary* moduleAndLabels;
 NSDictionary *moduleDictionary;
-UILabel *alarmLabel;
-MTTimerManager* globlmtmanager;
+MTTimerManager* globalTimerMgr;
+
 
 /* Load preferences after change */
 static void loadPrefs() {
 	NSMutableDictionary* mainPreferenceDict = [[NSMutableDictionary alloc] initWithContentsOfFile:GENERAL_PREFS];
-	if ([mainPreferenceDict objectForKey:@"isEnabled"] != nil) {
-		isEnabled = [[mainPreferenceDict objectForKey:@"isEnabled"] boolValue];
-	}
+    isEnabled = ([mainPreferenceDict objectForKey:@"isEnabled"] != nil) ? [[mainPreferenceDict objectForKey:@"isEnabled"] boolValue] : TRUE;
+    isAlarmETA = ([mainPreferenceDict objectForKey:@"isAlarmETA"] != nil) ? [[mainPreferenceDict objectForKey:@"isAlarmETA"] boolValue] : TRUE;
+    isTimerETA = ([mainPreferenceDict objectForKey:@"isTimerETA"] != nil) ? [[mainPreferenceDict objectForKey:@"isTimerETA"] boolValue] : TRUE;
+    isLastPressed = ([mainPreferenceDict objectForKey:@"isLastPressed"] != nil) ? [[mainPreferenceDict objectForKey:@"isLastPressed"] boolValue] : FALSE;
+    isStyleAlarmColorRand = ([mainPreferenceDict objectForKey:@"isStyleAlarmColorRand"] != nil) ? [[mainPreferenceDict objectForKey:@"isStyleAlarmColorRand"] boolValue] : FALSE;
+    isStyleTimerColorRand = ([mainPreferenceDict objectForKey:@"isStyleTimerColorRand"] != nil) ? [[mainPreferenceDict objectForKey:@"isStyleTimerColorRand"] boolValue] : FALSE;
+    isStyleLastPressedColorRand = ([mainPreferenceDict objectForKey:@"isStyleLastPressedColorRand"] != nil) ? [[mainPreferenceDict objectForKey:@"isStyleLastPressedColorRand"] boolValue] : FALSE;
 
-	if ([mainPreferenceDict objectForKey:@"isAlarmETA"] != nil) {
-		isAlarmETA = [[mainPreferenceDict objectForKey:@"isAlarmETA"] boolValue];
-	}
-	if ([mainPreferenceDict objectForKey:@"isTimerETA"] != nil) {
-		isTimerETA = [[mainPreferenceDict objectForKey:@"isTimerETA"] boolValue];
-	}
-	if ([mainPreferenceDict objectForKey:@"isLastPressed"] != nil) {
-		isLastPressed = [[mainPreferenceDict objectForKey:@"isLastPressed"] boolValue];
-	}
-	if ([mainPreferenceDict objectForKey:@"isStyleAlarmColorRand"] != nil) {
-		isStyleAlarmColorRand = [[mainPreferenceDict objectForKey:@"isStyleAlarmColorRand"] boolValue];
-	}
-	if ([mainPreferenceDict objectForKey:@"isStyleTimerColorRand"] != nil) {
-		isStyleTimerColorRand = [[mainPreferenceDict objectForKey:@"isStyleTimerColorRand"] boolValue];
-	}
-	if ([mainPreferenceDict objectForKey:@"isStyleLastPressedColorRand"] != nil) {
-		isStyleLastPressedColorRand = [[mainPreferenceDict objectForKey:@"isStyleLastPressedColorRand"] boolValue];
-	}
-	  if ([mainPreferenceDict objectForKey:@"styleAlarmColor"] != nil) {
+	if ([mainPreferenceDict objectForKey:@"styleAlarmColor"] != nil) {
 		styleAlarmColor = [mainPreferenceDict objectForKey:@"styleAlarmColor"];
 	}
-	  if ([mainPreferenceDict objectForKey:@"styleTimerColor"] != nil) {
+	if ([mainPreferenceDict objectForKey:@"styleTimerColor"] != nil) {
 		styleTimerColor = [mainPreferenceDict objectForKey:@"styleTimerColor"];
 	}
-	  if ([mainPreferenceDict objectForKey:@"styleLastPressedColor"] != nil) {
+	if ([mainPreferenceDict objectForKey:@"styleLastPressedColor"] != nil) {
 		styleLastPressedColor = [mainPreferenceDict objectForKey:@"styleLastPressedColor"];
 	}
 
 }
 
 %hook MTTimerManager   
-/* Get timer instances when system loads up */
+//this was the same but for currentTimer
 -(MTTimerManagerExportedObject *)exportedObject {
 	if (!isEnabled) {
 		return %orig;
 	}
 	MTTimerManagerExportedObject* expManager = %orig;
-	globlmtmanager = expManager.timerManager;
+	globalTimerMgr = expManager.timerManager;
 	if (singleInit == 0) {
 		NSFileManager *fileManager = [NSFileManager defaultManager];
 		if ([fileManager fileExistsAtPath:MODULE_LABELS_PATH]){ 
@@ -157,12 +64,12 @@ static void loadPrefs() {
 }
 %end
 
-/* By design - will change if requested - module engagement - touch is sufficient */
+//bug: when touched and not when pressed.
 %hook CCUIModuleCollectionViewController
 static BOOL timerWasExpended = FALSE;
 -(void)contentModuleContainerViewController:(id)arg1 didBeginInteractionWithModule:(id)arg2 {
 	if (!isEnabled) {
-		%orig;
+		%orig(arg1,arg2);
 		return;
 	}
 
@@ -182,7 +89,7 @@ static BOOL timerWasExpended = FALSE;
 
 -(void)contentModuleContainerViewControllerDismissPresentedContent:(id)arg1 {
 	if (!isEnabled) {
-		%orig;
+		%orig(arg1);
 		return;
 	}
 
@@ -194,7 +101,7 @@ static BOOL timerWasExpended = FALSE;
 
 -(void)viewWillAppear:(BOOL)arg1 {
 	if (!isEnabled) {
-		%orig;
+		%orig(arg1);
 		return;
 	}
 
@@ -272,8 +179,8 @@ static BOOL timerWasExpended = FALSE;
 %new
 -(void)addTimerLabel {
 	timerModuleContainerView = [moduleDictionary objectForKey:@"com.apple.mobiletimer.controlcenter.timer"];
-	if (globlmtmanager) {
-		MTTimer* crTimer = [globlmtmanager currentTimer];
+	if (globalTimerMgr) {
+		MTTimer* crTimer = [globalTimerMgr currentTimer];
 		MTTimer* _resultVal = MSHookIvar<MTTimer*>(crTimer,"_resultValue");
 		pendingDateTimer = _resultVal.fireDate;
 		int timeDelta = [pendingDateTimer timeIntervalSinceDate:[NSDate date]];

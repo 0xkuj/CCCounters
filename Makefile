@@ -2,7 +2,7 @@ ARCHS = arm64 arm64e
 include $(THEOS)/makefiles/common.mk
 
 TWEAK_NAME = CCCounters
-CCCounters_FILES = Tweak.xm
+CCCounters_FILES = $(wildcard CCC*.x*)
 CCCounters_LIBRARIES = colorpicker
 CCCounters_CFLAGS = -fobjc-arc
 

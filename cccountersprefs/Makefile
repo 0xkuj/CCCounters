@@ -7,6 +7,7 @@ CCCountersPrefs_INSTALL_PATH = /Library/PreferenceBundles
 CCCountersPrefs_FRAMEWORKS = UIKit
 CCCountersPrefs_PRIVATE_FRAMEWORKS = Preferences
 CCCountersPrefs_LIBRARIES = colorpicker
+CCCountersPrefs_CFLAGS = -fobjc-arc
 
 include $(THEOS_MAKE_PATH)/bundle.mk
 
