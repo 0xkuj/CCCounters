@@ -1,9 +1,10 @@
 ARCHS = arm64 arm64e
+TARGET := iphone:clang:14.5:14.5
+
 include $(THEOS)/makefiles/common.mk
 
 TWEAK_NAME = CCCounters
 CCCounters_FILES = $(wildcard CCC*.x*)
-CCCounters_LIBRARIES = colorpicker
 CCCounters_CFLAGS = -fobjc-arc
 
 include $(THEOS_MAKE_PATH)/tweak.mk

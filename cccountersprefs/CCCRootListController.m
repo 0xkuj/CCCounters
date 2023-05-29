@@ -1,8 +1,9 @@
 #include "CCCRootListController.h"
 #import <spawn.h>
+#import <rootless.h>
 
-#define GENERAL_PREFS @"/var/mobile/Library/Preferences/com.0xkuj.cccountersprefs.plist"
-#define MODULE_LABELS_PATH @"/var/mobile/Library/Preferences/com.0xkuj.cccounters_modules.plist"
+#define GENERAL_PREFS ROOT_PATH_NS(@"/var/mobile/Library/Preferences/com.0xkuj.cccountersprefs.plist")
+#define MODULE_LABELS_PATH ROOT_PATH_NS(@"/var/mobile/Library/Preferences/com.0xkuj.cccounters_modules.plist")
 
 @implementation CCCRootListController
 
@@ -57,26 +58,30 @@
 }
 
 - (id)readPreferenceValue:(PSSpecifier*)specifier {
-	NSString *path = [NSString stringWithFormat:@"/var/mobile/Library/Preferences/%@.plist", specifier.properties[@"defaults"]];
-	NSMutableDictionary *settings = [NSMutableDictionary dictionary];
-	[settings addEntriesFromDictionary:[NSDictionary dictionaryWithContentsOfFile:path]];
-	return (settings[specifier.properties[@"key"]]) ?: specifier.properties[@"default"];
+	NSDictionary* dict = [NSDictionary dictionaryWithContentsOfFile:GENERAL_PREFS];
+	id obj = [dict objectForKey:[[specifier properties] objectForKey:@"key"]];
+	if(!obj)
+	{
+		obj = [[specifier properties] objectForKey:@"default"];
+	}
+	return obj;
 }
 
 // cannot be only apps & only lockscreen, so disable the other when on is enabled
 - (void)setPreferenceValue:(id)value specifier:(PSSpecifier*)specifier {
-	NSString *path = [NSString stringWithFormat:@"/var/mobile/Library/Preferences/%@.plist", specifier.properties[@"defaults"]];
-	NSMutableDictionary *settings = [NSMutableDictionary dictionary];
-	[settings addEntriesFromDictionary:[NSDictionary dictionaryWithContentsOfFile:path]];
+	NSMutableDictionary *settings = [NSMutableDictionary dictionaryWithContentsOfFile:GENERAL_PREFS];
+	if (!settings) {
+		settings = [NSMutableDictionary dictionary];
+	}
 	[settings setObject:value forKey:specifier.properties[@"key"]];
-	[settings writeToFile:path atomically:YES];
+	[settings writeToFile:GENERAL_PREFS atomically:YES];
+
 	CFStringRef notificationName = (__bridge CFStringRef)specifier.properties[@"PostNotification"];
 	if (notificationName) {
 		CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(), notificationName, NULL, NULL, YES);
 	}
 	//causes the color to fallback, canceled for now
 	//[super setPreferenceValue:value specifier:specifier];
-
 	if(specifier.cellType == PSSwitchCell)	{
 		NSNumber* numValue = (NSNumber*)value;
 		NSNumber* nestedEntryCount = [[specifier properties] objectForKey:@"nestedEntryCount"];
@@ -115,7 +120,7 @@
     			handler:^(UIAlertAction * action) {
 					pid_t pid;
 					const char* args[] = {"killall", "backboardd", NULL};
-					posix_spawn(&pid, "/usr/bin/killall", NULL, NULL, (char* const*)args, NULL);
+					posix_spawn(&pid, "/var/jb/usr/bin/killall", NULL, NULL, (char* const*)args, NULL);
 				}];
 				[alert addAction:DoneAction];
 				[self presentViewController:alert animated:YES completion:nil];
@@ -139,7 +144,7 @@
     		handler:^(UIAlertAction * action) {
 			pid_t pid;
 			const char* args[] = {"killall", "backboardd", NULL};
-			posix_spawn(&pid, "/usr/bin/killall", NULL, NULL, (char* const*)args, NULL);
+			posix_spawn(&pid, "/var/jb/usr/bin/killall", NULL, NULL, (char* const*)args, NULL);
 	}];
 	/* prepare function for "no" button" */
 	UIAlertAction *cancelAction = [UIAlertAction actionWithTitle:@"No" style: UIAlertActionStyleCancel handler:^(UIAlertAction * action) { return; }];

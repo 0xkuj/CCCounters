@@ -1,24 +1,63 @@
 /* This tweak will add countdown indicators to your CC with special handling to Alarm/Timer.
  * Bonus: this tweak survives resprings!
 Created by: 0xkuj */
-
-#import <libcolorpicker.h>
-#define MODULE_LABELS_PATH @"/var/mobile/Library/Preferences/com.0xkuj.cccounters_modules.plist"
-#define GENERAL_PREFS @"/var/mobile/Library/Preferences/com.0xkuj.cccountersprefs.plist"
+#define MODULE_LABELS_PATH ROOT_PATH_NS(@"/var/mobile/Library/Preferences/com.0xkuj.cccounters_modules.plist")
+#define GENERAL_PREFS ROOT_PATH_NS(@"/var/mobile/Library/Preferences/com.0xkuj.cccountersprefs.plist")
 #include "CCCounters.h"
 
-static BOOL dismissingCC = FALSE,timerExpanded = FALSE;
-BOOL isEnabled,isAlarmETA,isTimerETA,isLastPressed,isStyleAlarmColorRand,isStyleTimerColorRand,isStyleLastPressedColorRand;
-NSString *styleAlarmColor = nil, *styleTimerColor = nil, *styleLastPressedColor = nil;
-UILabel *timeRemainingLabel,*alarmRemainingLabel;
-NSDate *pendingDateTimer,*pendingDateAlarm;
-CCUIContentModuleContainerView *timerModuleContainerView;
-NSTimer *pendingTimer,*pendingTimerAlarm;
-static int singleInit = 0;
-NSMutableDictionary* moduleAndLabels;
-NSDictionary *moduleDictionary;
-MTTimerManager* globalTimerMgr;
+@interface NSMutableDictionary (ContactsExtended)
+-(UIColor *)colorWithHexString:(NSString*)hex;
+@end
 
+@implementation NSMutableDictionary (ContactsExtended)
+-(UIColor *)colorWithHexString:(NSString*)hex {
+  if ([hex isEqualToString:@"red"]) {
+    return UIColor.systemRedColor;
+  } else if ([hex isEqualToString:@"orange"]) {
+    return UIColor.systemOrangeColor;
+  } else if ([hex isEqualToString:@"yellow"]) {
+    return UIColor.systemYellowColor;
+  } else if ([hex isEqualToString:@"green"]) {
+    return UIColor.systemGreenColor;
+  } else if ([hex isEqualToString:@"blue"]) {
+    return UIColor.systemBlueColor;
+  } else if ([hex isEqualToString:@"teal"]) {
+    return UIColor.systemTealColor;
+  } else if ([hex isEqualToString:@"indigo"]) {
+    return UIColor.systemIndigoColor;
+  } else if ([hex isEqualToString:@"purple"]) {
+    return UIColor.systemPurpleColor;
+  } else if ([hex isEqualToString:@"pink"]) {
+    return UIColor.systemPinkColor;
+  } else if ([hex isEqualToString:@"default"]) {
+    return UIColor.labelColor;
+  } else if ([hex isEqualToString:@"tertiary"]) {
+    return UIColor.tertiaryLabelColor;
+  } else {
+
+    NSString *cleanString = [hex stringByReplacingOccurrencesOfString:@"#" withString:@""];
+    if([cleanString length] == 3) {
+      cleanString = [NSString stringWithFormat:@"%@%@%@%@%@%@",
+      [cleanString substringWithRange:NSMakeRange(0, 1)],[cleanString substringWithRange:NSMakeRange(0, 1)],
+      [cleanString substringWithRange:NSMakeRange(1, 1)],[cleanString substringWithRange:NSMakeRange(1, 1)],
+      [cleanString substringWithRange:NSMakeRange(2, 1)],[cleanString substringWithRange:NSMakeRange(2, 1)]];
+    }
+    if([cleanString length] == 6) {
+      cleanString = [cleanString stringByAppendingString:@"ff"];
+    }
+
+    unsigned int baseValue;
+    [[NSScanner scannerWithString:cleanString] scanHexInt:&baseValue];
+
+    float red = ((baseValue >> 24) & 0xFF)/255.0f;
+    float green = ((baseValue >> 16) & 0xFF)/255.0f;
+    float blue = ((baseValue >> 8) & 0xFF)/255.0f;
+    float alpha = ((baseValue >> 0) & 0xFF)/255.0f;
+
+    return [UIColor colorWithRed:red green:green blue:blue alpha:alpha];
+  }
+}
+@end
 
 /* Load preferences after change */
 static void loadPrefs() {
@@ -32,15 +71,22 @@ static void loadPrefs() {
     isStyleLastPressedColorRand = ([mainPreferenceDict objectForKey:@"isStyleLastPressedColorRand"] != nil) ? [[mainPreferenceDict objectForKey:@"isStyleLastPressedColorRand"] boolValue] : FALSE;
 
 	if ([mainPreferenceDict objectForKey:@"styleAlarmColor"] != nil) {
-		styleAlarmColor = [mainPreferenceDict objectForKey:@"styleAlarmColor"];
-	}
-	if ([mainPreferenceDict objectForKey:@"styleTimerColor"] != nil) {
-		styleTimerColor = [mainPreferenceDict objectForKey:@"styleTimerColor"];
-	}
-	if ([mainPreferenceDict objectForKey:@"styleLastPressedColor"] != nil) {
-		styleLastPressedColor = [mainPreferenceDict objectForKey:@"styleLastPressedColor"];
+		styleAlarmColor = [mainPreferenceDict colorWithHexString:[mainPreferenceDict objectForKey:@"styleAlarmColor"]];
+	} else {
+		styleAlarmColor = [UIColor whiteColor];
 	}
 
+	if ([mainPreferenceDict objectForKey:@"styleTimerColor"] != nil) {
+		styleTimerColor = [mainPreferenceDict colorWithHexString:[mainPreferenceDict objectForKey:@"styleTimerColor"]];
+	} else {
+		styleTimerColor = [UIColor whiteColor];
+	}
+
+	if ([mainPreferenceDict objectForKey:@"styleLastPressedColor"] != nil) {
+		styleLastPressedColor = [mainPreferenceDict colorWithHexString:[mainPreferenceDict objectForKey:@"styleLastPressedColor"]];
+	} else {
+		styleLastPressedColor = [UIColor whiteColor];
+	}
 }
 
 %hook MTTimerManager   
@@ -123,7 +169,7 @@ static BOOL timerWasExpended = FALSE;
 			if (isStyleLastPressedColorRand) {
 				[moduleDateLabel setTextColor:[self randColor]];
 			} else {
-				[moduleDateLabel setTextColor:LCPParseColorString(styleLastPressedColor, @"#FFFFFF")];
+				[moduleDateLabel setTextColor:styleLastPressedColor];
 			}
 			[moduleDateLabel setTextAlignment:NSTextAlignmentCenter];
 			[moduleView addSubview:moduleDateLabel];
@@ -165,7 +211,7 @@ static BOOL timerWasExpended = FALSE;
 			if (isStyleAlarmColorRand) {
 				[alarmRemainingLabel setTextColor:[self randColor]];
 			} else {
-				[alarmRemainingLabel setTextColor:LCPParseColorString(styleAlarmColor, @"#FFFFFF")];
+				[alarmRemainingLabel setTextColor:styleAlarmColor];
 			}
 			[alarmRemainingLabel setTextAlignment:NSTextAlignmentCenter];
 			[alarmModuleContainerView addSubview:alarmRemainingLabel];
@@ -195,7 +241,7 @@ static BOOL timerWasExpended = FALSE;
 			if (isStyleTimerColorRand) {
 				[timeRemainingLabel setTextColor:[self randColor]];
 			} else {
-				[timeRemainingLabel setTextColor:LCPParseColorString(styleTimerColor, @"#FFFFFF")];
+				[timeRemainingLabel setTextColor:styleTimerColor];
 			}
 			
 			[timeRemainingLabel setTextAlignment:NSTextAlignmentCenter];
@@ -234,7 +280,7 @@ static BOOL timerWasExpended = FALSE;
 	if (isStyleLastPressedColorRand) {
 		[lastPressedLabel setTextColor:[self randColor]];
 	} else {
-		[lastPressedLabel setTextColor:LCPParseColorString(styleLastPressedColor, @"#FFFFFF")];
+		[lastPressedLabel setTextColor:styleLastPressedColor];
 	}
 	
 	[lastPressedLabel setTextAlignment:NSTextAlignmentCenter];

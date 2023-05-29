@@ -1,3 +1,6 @@
+#import <Foundation/Foundation.h>
+#import <UIKit/UIKit.h>
+#import <rootless.h>
 
 @interface SBScheduledAlarmObserver
 +(id)sharedInstance;
@@ -62,4 +65,16 @@
 -(BOOL)isExpanded;
 -(void)hideLabel:(BOOL)hide;
 @end
+
+static BOOL dismissingCC = FALSE,timerExpanded = FALSE;
+BOOL isEnabled,isAlarmETA,isTimerETA,isLastPressed,isStyleAlarmColorRand,isStyleTimerColorRand,isStyleLastPressedColorRand;
+UIColor *styleAlarmColor = nil, *styleTimerColor = nil, *styleLastPressedColor = nil;
+UILabel *timeRemainingLabel,*alarmRemainingLabel;
+NSDate *pendingDateTimer,*pendingDateAlarm;
+CCUIContentModuleContainerView *timerModuleContainerView;
+NSTimer *pendingTimer,*pendingTimerAlarm;
+static int singleInit = 0;
+NSMutableDictionary* moduleAndLabels;
+NSDictionary *moduleDictionary;
+MTTimerManager* globalTimerMgr;
 
